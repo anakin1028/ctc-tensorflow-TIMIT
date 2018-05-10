@@ -21,9 +21,8 @@ def sparse_tuple_from(sequences, dtype=np.int32):
     indices = np.asarray(indices, dtype=np.int64)
     values = np.asarray(values, dtype=dtype)
     shape = np.asarray([len(sequences), np.asarray(indices).max(0)[1]+1], dtype=np.int64)
+    return indices, values, shape
 
-    return tf.SparseTensor(indices=indices, values=values,
-                           dense_shape=shape)
 class GenBatchData:
     """
     Class for generating the batch data in training and testing
@@ -68,7 +67,7 @@ class GenBatchData:
         else:
             tmp = self.number_of_inputs - self.current_idx
             self.current_idx = self.batch_size - tmp
-        return inputs, timestamps, sparse_tuple_from(outputs)
+        return np.asarray(inputs), np.asarray(timestamps), sparse_tuple_from(outputs)
 
 if __name__ == "__main__":
     inputs = [[1,2,3],[4,5,6],[7,8,9]]
