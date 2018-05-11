@@ -148,11 +148,14 @@ def compute_and_store_training_features(train_path):
             basename = filenamesplits[0]
             extname = filenamesplits[1]
             if extname == '.wav':
-                fullpath = os.path.join(dirpath, filename)
-                features = get_audio_feature(fullpath)
-                phnfile = os.path.join(dirpath, basename+'.phn')
-                wrdfile = os.path.join(dirpath, basename+'.wrd')
-                train_datas.append(Phonemefeat(features, phnfile, wrdfile))
+                # store the features for si and sx
+                if basename[:2] == 'si' or basename[:2]=='sx':
+                    print(basename)
+                    fullpath = os.path.join(dirpath, filename)
+                    features = get_audio_feature(fullpath)
+                    phnfile = os.path.join(dirpath, basename+'.phn')
+                    wrdfile = os.path.join(dirpath, basename+'.wrd')
+                    train_datas.append(Phonemefeat(features, phnfile, wrdfile))
     with open(FEAT_PICKFILE, 'wb') as fh:
         pickle.dump(train_datas, fh)
 
@@ -160,7 +163,3 @@ def get_train_data():
     with open(FEAT_PICKFILE, 'rb') as fh:
         features = pickle.load(fh)
     return features
-
-if __name__ == "__main__":
-    #compute_and_store_training_features(TRAIN_PATH)
-    xx = get_train_data()
