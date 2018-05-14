@@ -79,6 +79,26 @@ def get_train_inputs():
     inputs, timestamp_seq = pad_zeros_for_inputs(all_inputs)
     return inputs, timestamp_seq, all_outputs
 
+def transform_single_example(features, phnfile):
+    """
+    Used for validation
+    """
+    normalize_features = (features - np.mean(features))/np.std(features)
+    phones = []
+    with open(phnfile, 'r') as fh:
+        for line in fh:
+            phone = line.strip().split(" ")[2]
+            phones.append(featext.PHONE_IDX_DICT[phone])
+    inputs, timestamp_seq = pad_zeros_for_inputs([normalize_features])
+    return inputs, timestamp_seq, [phones]
+
+def get_validation_input(audio_path, phnfile):
+    """
+    path for extracting the mfcc and running validation
+    """
+    features = featext.get_audio_feature(audio_path)
+    return transform_single_example(features, phnfile)
+
 def train():
     """
     Build and train the model
@@ -137,10 +157,10 @@ def train():
         saver = tf.train.Saver()
         saver.save(session, OUTPUT_PATH)
 
-def validate():
-    train_inputs, timestamp_seq, originals = get_train_inputs()
+def validate(audiopath, phnfile):
+    train_inputs, timestamp_seq, originals = get_validation_input(audiopath, phnfile)
     gen_batch_obj = gen_batch.GenBatchData(train_inputs, timestamp_seq,
-                                           originals, BATCH_SIZE)
+                                           originals, 1)
     # pick one batch
     b_inputs, b_seqlen, b_outputs = gen_batch_obj.get_batch_data()
     with tf.Session() as sess:
@@ -169,5 +189,3 @@ def validate():
         print("original decoded {}".format(original_decoded))
 
 if __name__ == "__main__":
-    #validate()
-    train()
