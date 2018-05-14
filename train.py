@@ -6,7 +6,6 @@ import tensorflow as tf
 import numpy as np
 # for getting the feature extraction
 import featext
-from featext import Phonemefeat
 # for generating the batch data
 import gen_batch
 
@@ -28,7 +27,7 @@ MOMENTUM = 0.9
 NUM_EXAMPLES = 3696
 NUM_BATCHES = 124
 # output model
-OUTPUT_PATH="./output/inference_model"
+OUTPUT_PATH = "./output/inference_model"
 
 def pad_zeros_for_inputs(batch_data):
     """
@@ -45,7 +44,7 @@ def pad_zeros_for_inputs(batch_data):
     List of timestamps [3,         # instance 1
                         2]         # instance 2
     """
-    shape_list = [data.shape[0] for data in batch_data] 
+    shape_list = [data.shape[0] for data in batch_data]
     max_timestamps_idx = np.argmax(shape_list)
     max_timestamps = shape_list[max_timestamps_idx]
     # times for each instance
@@ -115,7 +114,8 @@ def train():
         seq_len = tf.placeholder(tf.int32, [None], name="seq_len")
         cell = tf.contrib.rnn.LSTMCell(NUM_UNITS)
         outputs, states = tf.nn.dynamic_rnn(cell, inputs,
-                            sequence_length=seq_len, dtype=tf.float32)
+                                            sequence_length=seq_len,
+                                            dtype=tf.float32)
         # the input shape
         shape = tf.shape(inputs)
         batch_s, max_timesteps = shape[0], shape[1]
@@ -131,7 +131,7 @@ def train():
         loss = tf.nn.ctc_loss(targets, logits, seq_len)
         cost = tf.reduce_mean(loss)
         optimizer = tf.train.MomentumOptimizer(LEARNING_RATE,
-            MOMENTUM).minimize(cost)
+                                               MOMENTUM).minimize(cost)
         decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
         ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
 
@@ -141,23 +141,28 @@ def train():
             train_cost = train_ler = 0
             for i in range(NUM_BATCHES):
                 b_inputs, b_seqlen, b_outputs = gen_batch_obj.get_batch_data()
-                feed = {inputs: b_inputs,
-                        targets: b_outputs,
-                        seq_len: b_seqlen
-                        }
+                feed = {
+                    inputs: b_inputs,
+                    targets: b_outputs,
+                    seq_len: b_seqlen
+                }
                 batch_cost, _ = session.run([cost, optimizer], feed)
                 batch_ler = session.run(ler, feed_dict=feed)*BATCH_SIZE
                 train_cost += batch_cost * BATCH_SIZE
                 train_ler += batch_ler
-                print("current epoch:{} current batch:{} batch_cost: {} batch_ler: {}".format(curr_epoch, i, batch_cost, batch_ler))
+                print("current epoch:{} current batch:{} batch_cost: {} batch_ler: {}".format(
+                    curr_epoch, i, batch_cost, batch_ler))
             train_cost /= NUM_EXAMPLES
             train_ler /= NUM_EXAMPLES
             print("epoch {} cost {} ler {}".format(curr_epoch, train_cost,
-                  train_ler))
+                                                   train_ler))
         saver = tf.train.Saver()
         saver.save(session, OUTPUT_PATH)
 
 def validate(audiopath, phnfile):
+    """
+    running Validation
+    """
     train_inputs, timestamp_seq, originals = get_validation_input(audiopath, phnfile)
     gen_batch_obj = gen_batch.GenBatchData(train_inputs, timestamp_seq,
                                            originals, 1)
@@ -174,18 +179,17 @@ def validate(audiopath, phnfile):
         outputs_shapes = graph.get_tensor_by_name("outputs/shape:0")
         seq_len = graph.get_tensor_by_name("seq_len:0")
         logit_operation = graph.get_tensor_by_name("output_logits:0")
-        feed = {inputs: b_inputs,
-                outputs_indices: b_outputs[0],
-                outputs_values: b_outputs[1],
-                outputs_shapes: b_outputs[2],
-                seq_len: b_seqlen
-                }
+        feed = {
+            inputs: b_inputs,
+            outputs_indices: b_outputs[0],
+            outputs_values: b_outputs[1],
+            outputs_shapes: b_outputs[2],
+            seq_len: b_seqlen
+        }
         logits = sess.run(logit_operation, feed)
         decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
-        d = sess.run(decoded[0], feed_dict = feed)
-        phoneme_decoded = ' '.join([featext.IDX2PHONE[x] for x in d[1]])
+        model_decode = sess.run(decoded[0], feed_dict=feed)
+        phoneme_decoded = ' '.join([featext.IDX2PHONE[x] for x in model_decode[1]])
         original_decoded = ' '.join([featext.IDX2PHONE[x] for x in originals[0]])
         print("model decoded    {}".format(phoneme_decoded))
         print("original decoded {}".format(original_decoded))
-
-if __name__ == "__main__":
