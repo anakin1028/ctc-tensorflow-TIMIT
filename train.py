@@ -4,6 +4,7 @@ Module to train the CTC model
 
 import tensorflow as tf
 import numpy as np
+import os
 # for getting the feature extraction
 import featext
 # for generating the batch data
@@ -26,8 +27,6 @@ MOMENTUM = 0.9
 # batch_size: 50
 NUM_EXAMPLES = 3696
 NUM_BATCHES = 124
-# output model
-OUTPUT_PATH = "./output/inference_model"
 
 def pad_zeros_for_inputs(batch_data):
     """
@@ -61,11 +60,11 @@ def pad_zeros_for_inputs(batch_data):
         paddatas.append(paddata)
     return paddatas, batch_timestamps
 
-def get_train_inputs():
+def get_train_inputs(featpickle_path):
     """
     Get the training data in the pickle file
     """
-    phoneme_objs = featext.get_train_data()
+    phoneme_objs = featext.get_train_data(featpickle_path)
     all_inputs = []
     # number of output sequences
     all_outputs = []
@@ -98,11 +97,11 @@ def get_validation_input(audio_path, phnfile):
     features = featext.get_audio_feature(audio_path)
     return transform_single_example(features, phnfile)
 
-def train():
+def train(output_model_path, featpick_path):
     """
     Build and train the model
     """
-    train_inputs, timestamp_seq, outputs = get_train_inputs()
+    train_inputs, timestamp_seq, outputs = get_train_inputs(featpick_path)
     gen_batch_obj = gen_batch.GenBatchData(train_inputs, timestamp_seq,
                                            outputs, BATCH_SIZE)
     graph = tf.Graph()
@@ -157,9 +156,9 @@ def train():
             print("epoch {} cost {} ler {}".format(curr_epoch, train_cost,
                                                    train_ler))
         saver = tf.train.Saver()
-        saver.save(session, OUTPUT_PATH)
+        saver.save(session, output_model_path)
 
-def validate(audiopath, phnfile):
+def validate(audiopath, phnfile, model_path):
     """
     running Validation
     """
@@ -169,8 +168,9 @@ def validate(audiopath, phnfile):
     # pick one batch
     b_inputs, b_seqlen, b_outputs = gen_batch_obj.get_batch_data()
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph("./output/inference_model.meta")
-        saver.restore(sess, tf.train.latest_checkpoint("./output"))
+        saver = tf.train.import_meta_graph(model_path)
+        saver.restore(sess, tf.train.latest_checkpoint(
+            os.path.dirname(model_path)))
         graph = tf.get_default_graph()
         inputs = graph.get_tensor_by_name("inputs:0")
         # extract indices/values/shapes for the sparse tensor
