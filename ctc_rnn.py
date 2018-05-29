@@ -79,7 +79,7 @@ def run_ctc():
             os.makedirs(outputdir)
         featpickle_file = os.path.join(featdir, "features.pickle")
         if not os.path.exists(featpickle_file):
-            print("features not exit. Please run feature transform first")
+            print("features not exist. Please run feature transform first")
             sys.exit(0)
         model_path = os.path.join(outputdir, "inference_model")
         train.train(model_path, featpickle_file)

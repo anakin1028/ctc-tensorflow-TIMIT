@@ -11,19 +11,14 @@ import featext
 import gen_batch
 import models.unirnn as unirnn
 
+# Hyper parameters
+
 # 13MFCCS and their first order differential
 NUM_FEATURES = 26
-# 100 LSTM cells in a block
-NUM_UNITS = 100
-# 61 phonemes + 1 NULL
-NUM_CLASSES = 62
-# Hyper parameters
 NUM_EPOCHS = 450
 # how deep is the model
 NUM_LAYERS = 1
 BATCH_SIZE = 30
-LEARNING_RATE = 1e-4
-MOMENTUM = 0.9
 # number of training data: 4620
 # batch_size: 50
 NUM_EXAMPLES = 3696
@@ -105,22 +100,13 @@ def train(output_model_path, featpick_path):
     train_inputs, timestamp_seq, outputs = get_train_inputs(featpick_path)
     gen_batch_obj = gen_batch.GenBatchData(train_inputs, timestamp_seq,
                                            outputs, BATCH_SIZE)
-    graph = tf.Graph()
-    with graph.as_default():
-        # input mfcc datas
-        inputs = tf.placeholder(tf.float32, [None, None, NUM_FEATURES], name="inputs")
-        # output phonemes
-        targets = tf.sparse_placeholder(tf.int32, name="outputs")
-        seq_len = tf.placeholder(tf.int32, [None], name="seq_len")
-        logits = unirnn.inference(inputs, seq_len)
-        loss = tf.nn.ctc_loss(targets, logits, seq_len)
-        cost = tf.reduce_mean(loss)
-        optimizer = tf.train.MomentumOptimizer(LEARNING_RATE,
-                                               MOMENTUM).minimize(cost)
-        decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
-        ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
-
-    with tf.Session(graph=graph) as session:
+    # define the placeholders
+    inputs = tf.placeholder(tf.float32, [None, None, NUM_FEATURES], name="inputs")
+    # output phonemes
+    targets = tf.sparse_placeholder(tf.int32, name="outputs")
+    seq_len = tf.placeholder(tf.int32, [None], name="seq_len")
+    cost, optimizer = unirnn.train_model(inputs, targets, seq_len)
+    with tf.Session() as session:
         tf.global_variables_initializer().run()
         for curr_epoch in range(NUM_EPOCHS):
             train_cost = train_ler = 0
@@ -132,17 +118,14 @@ def train(output_model_path, featpick_path):
                     seq_len: b_seqlen
                 }
                 batch_cost, _ = session.run([cost, optimizer], feed)
-                batch_ler = session.run(ler, feed_dict=feed)*BATCH_SIZE
                 train_cost += batch_cost * BATCH_SIZE
-                train_ler += batch_ler
-                print("current epoch:{} current batch:{} batch_cost: {} batch_ler: {}".format(
-                    curr_epoch, i, batch_cost, batch_ler))
+                print("current epoch:{} current batch:{} batch_cost: {}".format(
+                    curr_epoch, i, batch_cost))
             train_cost /= NUM_EXAMPLES
             train_ler /= NUM_EXAMPLES
-            print("epoch {} cost {} ler {}".format(curr_epoch, train_cost,
-                                                   train_ler))
-        saver = tf.train.Saver()
-        saver.save(session, output_model_path)
+            print("epoch {} cost {} ".format(curr_epoch, train_cost))
+            saver = tf.train.Saver()
+            saver.save(session, output_model_path, global_step=curr_epoch)
 
 def validate(audiopath, phnfile, model_path):
     """

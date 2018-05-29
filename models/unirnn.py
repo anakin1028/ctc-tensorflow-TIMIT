@@ -7,6 +7,8 @@ import tensorflow as tf
 NUM_UNITS = 100
 # 61 phonemes + 1 NULL
 NUM_CLASSES = 62
+LEARNING_RATE = 1e-4
+MOMENTUM = 0.9
 
 def inference(inputs, seq_len):
     """
@@ -29,3 +31,14 @@ def inference(inputs, seq_len):
     # time major
     logits = tf.transpose(logits, (1, 0, 2), name="output_logits")
     return logits
+
+def train_model(inputs, targets, seq_len):
+    """
+    Train model graph
+    """
+    logits = inference(inputs, seq_len)
+    loss = tf.nn.ctc_loss(targets, logits, seq_len)
+    cost = tf.reduce_mean(loss)
+    optimizer = tf.train.MomentumOptimizer(LEARNING_RATE,
+                                           MOMENTUM).minimize(cost)
+    return cost, optimizer
