@@ -42,3 +42,11 @@ def train_model(inputs, targets, seq_len):
     optimizer = tf.train.MomentumOptimizer(LEARNING_RATE,
                                            MOMENTUM).minimize(cost)
     return cost, optimizer
+
+def eval_model(inputs, targets, seq_len):
+    """
+    Build the evaluation graph
+    """
+    logits = inference(inputs, seq_len)
+    decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
+    return decoded

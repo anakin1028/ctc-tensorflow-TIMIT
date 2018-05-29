@@ -136,27 +136,21 @@ def validate(audiopath, phnfile, model_path):
                                            originals, 1)
     # pick one batch
     b_inputs, b_seqlen, b_outputs = gen_batch_obj.get_batch_data()
+    # define the placeholders
+    inputs = tf.placeholder(tf.float32, [None, None, NUM_FEATURES])
+    # output phonemes
+    targets = tf.sparse_placeholder(tf.int32)
+    seq_len = tf.placeholder(tf.int32, [None])
+    decoded = unirnn.eval_model(inputs, targets, seq_len)
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph(model_path)
+        saver = tf.train.Saver()
         saver.restore(sess, tf.train.latest_checkpoint(
             os.path.dirname(model_path)))
-        graph = tf.get_default_graph()
-        inputs = graph.get_tensor_by_name("inputs:0")
-        # extract indices/values/shapes for the sparse tensor
-        outputs_indices = graph.get_tensor_by_name("outputs/indices:0")
-        outputs_values = graph.get_tensor_by_name("outputs/values:0")
-        outputs_shapes = graph.get_tensor_by_name("outputs/shape:0")
-        seq_len = graph.get_tensor_by_name("seq_len:0")
-        logit_operation = graph.get_tensor_by_name("output_logits:0")
         feed = {
             inputs: b_inputs,
-            outputs_indices: b_outputs[0],
-            outputs_values: b_outputs[1],
-            outputs_shapes: b_outputs[2],
+            targets: b_outputs,
             seq_len: b_seqlen
         }
-        logits = sess.run(logit_operation, feed)
-        decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
         model_decode = sess.run(decoded[0], feed_dict=feed)
         phoneme_decoded = ' '.join([featext.IDX2PHONE[x] for x in model_decode[1]])
         original_decoded = ' '.join([featext.IDX2PHONE[x] for x in originals[0]])
